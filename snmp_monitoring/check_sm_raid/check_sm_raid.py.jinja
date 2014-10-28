@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+from pepper import Pepper
+import logging
+import pygerduty
+import os
+
+"""
+========
+OVERVIEW
+========
+
+This script monitors the status of RAID arrays on SuperMicro servers. It is required because most SuperMicro servers do not
+have the ability to report RAID/HDD status via SNMP, so this cannot be monitored by the main SNMP server monitoring script.
+
+The script works by using Salt to run a command on all SM servers which reports the RAID status. The command is 
+'mdadm --detail /dev/md127p1'. It checks the "state" and generates an alarm if it contains the term "degraded." 
+
+"""
+
+#SET LOGGING AND FILE INFO
+if not os.path.exists('/var/log/snmp_monitoring/'):
+    os.mkdir('/var/log/snmp_monitoring/')
+logging.basicConfig(filename='/var/log/snmp_monitoring/check_sm_raid.log',format='%(asctime)s: %(levelname)s: %(message)s',level=logging.INFO)
+docroot = "/opt/spot/snmp_monitoring/check_sm_raid/"
+open_alarms = []
+
+# Uses pygerduty to send "resolves" and "triggers" to PD. Only sends "resolves" for currently open incidents.
+def sendToPagerDuty(type,key,desc,det):
+    SPOT_API_TOKEN="<Your PagerDuty API>"
+    SERVICE_API_TOKEN="<Your PagerDuty service API>"
+    try:
+        pager = pygerduty.PagerDuty(api_token=SPOT_API_TOKEN)
+        if type == "trigger":
+            if checkForExclusion(key) is False:
+                incident = pager.trigger_incident(service_key=SERVICE_API_TOKEN, incident_key=key, description=desc, details=det)
+                logging.info('s<Your PagerDuty domain>\tPAGER\tCreating Alarm: {0}'.format(key))
+            else:
+                logging.info('s<Your PagerDuty domain>\tPAGER\tAlarm Excluded: {0}'.format(key))
+        elif type == "resolve":
+            if checkForAlarm(key):
+                logging.info('s<Your PagerDuty domain>\tPAGER\tResolving Open Incident: {0}'.format(key))
+                incident = pager.resolve_incident(service_key=SERVICE_API_TOKEN, incident_key=key, description=desc, details=det)
+    except Exception as inst:
+        msg = 'Exception occurred while sending incident to PagerDuty; Exception = "{0}"'.format(inst)
+        logging.warning('PAGER\t\tERROR\t{0}'.format(msg))
+
+
+# Uses pygerduty to get current list of all open incidents for PD. We need this information
+# to decide when "resolve" messages are needed.
+def getCurrentAlarms():
+    SPOT_API_TOKEN="<Your PagerDuty API>"
+    pager = pygerduty.PagerDuty(api_token=SPOT_API_TOKEN)
+    for incident in pager.incidents.list(status="triggered,acknowledged"):
+        open_alarms.append(incident.incident_key)
+        logging.info('PAGER\tOPEN INCIDENTS\t{0}'.format(incident.incident_key))
+
+def checkForAlarm(key):
+    if key in open_alarms:
+        return True
+    return False
+
+def checkForExclusion(key):
+    result = False
+    with open(docroot+'sm_raid_exclusions','r') as f:
+        for line in f:
+            if line[:-1] == key:
+                result = True
+                return result
+    return result
+
+def touch(fname):
+    if os.path.exists(fname):
+        os.utime(fname, None)
+    else:
+        open(fname, 'a').close()
+
+def check_raid(env):
+    #Salt returns staging, uat, or master. We need to change master to production in order for the query to work correctly.
+    if env in ['master','base']: env = 'production'
+    
+    #Use Pepper to query salt for RAID status on all SuperMicro servers in this environment (staging, uat, or prod)
+    api = Pepper("http://salt{0}:8000".format(env))
+    api.login('<User name>', '<password>', 'pam')
+    result = api.local("manufacturer:Supermicro", expr_form='grain', fun='cmd.run', arg=['mdadm --detail /dev/md127p1 | grep "State :"'])
+
+    #Loop through results and generate an alarm if the status is 'degraded.' 
+    for host,status in result.get('return')[0].iteritems():
+        status = status.strip()
+        if 'degraded' in status.lower():
+            msg = 'RAID issue detected on {0}; Status: "{1}"'.format(host,status)
+            logging.warning('{0}\tRAID\t{1}'.format(host,msg))
+            sendToPagerDuty("trigger","supermicro/raid/{0}".format(host),"RAID issue detected on {0}".format(host),msg)
+        else:
+            msg = 'RAID checked and OK on {0}; Status: "{1}"'.format(host,status)
+            logging.info('{0}\tRAID\t{1}'.format(host,msg))
+            sendToPagerDuty("resolve","supermicro/raid/{0}".format(host),"No RAID issues detected on {0}".format(host),msg)
+
+def main():
+    logging.info('***************************************************************************')
+    logging.info('Starting Script')
+
+    touch(docroot + 'sm_raid_exclusions')
+
+    #Check PagerDuty for open incidents
+    try:
+        getCurrentAlarms()
+    except Exception as inst:
+        msg = 'Exception occurred while querying PagerDuty for open incidents; Exception = "{0}"'.format(inst)
+        logging.warning('PAGER\tERROR\t{0}'.format(msg))
+
+    try:
+        check_raid('{{ salt['pillar.get']('globals:salt_env_to_use') }}')
+        #check_raid('staging')
+    except Exception as inst:
+        msg = 'Exception occurred while querying Salt for RAID status; Exception = "{0}"'.format(inst)
+        logging.warning('MAIN\tERROR\t{0}'.format(msg))
+
+    logging.info('Script Complete')
+
+if __name__ == "__main__":
+    main()
+

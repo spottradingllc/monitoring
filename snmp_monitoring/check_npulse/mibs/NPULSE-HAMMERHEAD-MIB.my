@@ -1,0 +1,1214 @@
+NPULSE-HAMMERHEAD-MIB DEFINITIONS ::= BEGIN
+
+    IMPORTS
+        MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Integer32, Unsigned32, Counter32, Counter64
+            FROM SNMPv2-SMI
+            
+        Float
+            FROM NET-SNMP-TC
+            
+        npulseProducts, Integer64, Unsigned64, Double
+            FROM NPULSE-MIB;
+
+    hammerhead MODULE-IDENTITY
+        LAST-UPDATED "201210100000Z"
+        ORGANIZATION "nPulse Technologies, Inc."
+        CONTACT-INFO
+            "
+            nPulse Technologies Inc.
+            374 Four Leaf Lane, Suite 204
+            Charlottesville, VA 22903
+            "
+        DESCRIPTION
+            "
+            HammerHead Flow and Packet Capture MIB.
+            "
+        REVISION "201210100000Z"
+        DESCRIPTION
+            "
+            Initial revision
+            "
+        ::= { npulseProducts 1 }
+
+hhstats OBJECT IDENTIFIER ::= { hammerhead 1 }
+processes OBJECT IDENTIFIER ::= { hhstats 1 }
+capture OBJECT IDENTIFIER ::= { hhstats 2 }
+pps OBJECT IDENTIFIER ::= { hhstats 3 }
+sensors OBJECT IDENTIFIER ::= { hhstats 4 }
+disks OBJECT IDENTIFIER ::= { hhstats 5 }
+load OBJECT IDENTIFIER ::= { hhstats 6 }
+interfaces OBJECT IDENTIFIER ::= { hhstats 7 }
+
+hhtraps OBJECT IDENTIFIER ::= { hammerhead 2 }
+errors OBJECT IDENTIFIER ::= { hhtraps 1 }
+notices OBJECT IDENTIFIER ::= { hhtraps 2 }
+
+--
+-- --
+-- -- -- Statistics
+-- --
+--
+hhCaptureStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhcapture process is currently running.
+        "
+    DEFVAL { processDown }
+    ::= { processes 1 }
+    
+hhRetrieveStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhretrieve process is currently running.
+        "
+    DEFVAL { processDown }
+    ::= { processes 2 }
+
+hhChannelStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhchannel process is currently running.
+        "
+    DEFVAL { processDown }
+    ::= { processes 3 }
+    
+hhRedisStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the redis data store is currently running.
+        "
+    DEFVAL { processDown }
+    ::= { processes 4 }
+
+hhMomStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhmom process is currently running. 
+        "
+    DEFVAL { processDown }
+    ::= { processes 5 }
+    
+hhWatchdogStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhwatchdog process is currently running.
+        "
+    ::= { processes 6 }
+
+hhStatsStatus OBJECT-TYPE
+    SYNTAX        INTEGER { processDown(0), processUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Boolean value indicating whether the hhstats process is currently running.
+        "
+    ::= { processes 7 }
+
+captureDropsTotal OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Total number of dropped packets for this run of hhcapture
+        "
+    ::= { capture 1 } 
+
+captureErrorsTotal OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Total number of packet errors for this run of hhcapture
+        "
+    ::= { capture 2 }
+    
+captureChannelStats OBJECT-TYPE
+    SYNTAX        SEQUENCE OF CaptureChannelStatsEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            Table that holds the total number of capture drops for each channel
+        "
+    ::= { capture 3 }
+
+captureChannelStatsEntry OBJECT-TYPE
+    SYNTAX        CaptureChannelStatsEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            A row in the captureDropsPerChannel table
+        "
+    INDEX	{ channelNumber }
+    ::= { captureChannelStats 1 }
+    
+CaptureChannelStatsEntry ::= SEQUENCE {
+    channelNumber    Integer32,
+    channelLink             INTEGER,
+    channelDrops      Unsigned64,
+    channelErrors     Unsigned64
+}
+
+channelNumber OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The channel number of a row of the captureStatsPerChannel table
+        "
+    ::= { captureChannelStatsEntry 1 }
+    
+channelLink OBJECT-TYPE
+    SYNTAX        INTEGER { linkDown(0), linkUp(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The link status for the channel
+        "
+    ::= { captureChannelStatsEntry 2 }
+    
+channelDrops OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The number of packets that have been dropped by the channel.
+        "
+    ::= { captureChannelStatsEntry 3 }
+    
+channelErrors OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The number of packets errors in the channel.
+        "
+    ::= { captureChannelStatsEntry 4 }
+
+captureStreamStats OBJECT-TYPE
+    SYNTAX        SEQUENCE OF CaptureStreamStatsEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            Table that holds the capture statis on a per stream basis
+        "
+    ::= { capture 4 }
+    
+captureStreamStatsEntry OBJECT-TYPE
+    SYNTAX        CaptureStreamStatsEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            A row in the captureStreamStats table
+        "
+    INDEX         {streamNumber}
+    ::= { captureStreamStats 1 }
+
+CaptureStreamStatsEntry ::= SEQUENCE {
+    streamNumber    Integer32,
+    streamMfps          Float,
+    streamDfps          Float,
+    streamFrames        Unsigned64,
+    streamErrors        Unsigned64,
+    streamSliced        Unsigned64,
+    streamOctets        Unsigned64,
+    streamMbps          Float,
+    streamDropped       Unsigned64,
+    streamViolations    Unsigned64
+}
+
+streamNumber OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Stream number of the table entry
+        "
+    ::= { captureStreamStatsEntry 1 }
+
+streamMfps OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            TODO
+        "
+    ::= { captureStreamStatsEntry 2 }
+
+streamDfps OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            TODO
+        "
+    ::= { captureStreamStatsEntry 3 }
+
+streamFrames OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        
+        "
+    ::= { captureStreamStatsEntry 4 }
+
+streamErrors OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        
+        "
+    ::= { captureStreamStatsEntry 5 }
+
+streamSliced OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        
+        "
+    ::= { captureStreamStatsEntry 6 }
+
+streamOctets OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        
+        "
+    ::= { captureStreamStatsEntry 7 }
+
+streamMbps OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Megabits per second for the stream  
+        "
+    ::= { captureStreamStatsEntry 8 }
+
+streamDropped OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Number of drops for the stream
+        "
+    ::= { captureStreamStatsEntry 9 }
+
+streamViolations OBJECT-TYPE
+    SYNTAX        Unsigned64
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Number of violations for the stream.
+        "
+    ::= { captureStreamStatsEntry  10 }
+
+captureAdapterTemperature OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+           Hammerhead capture adapter current temperature
+        "
+    ::= { capture 5 }
+    
+captureSFPTemperatures OBJECT-TYPE
+    SYNTAX        SEQUENCE OF CaptureSFPTemperatureEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            Table that holds the temperature values of all Napatech SFPs.
+        "
+    ::= { capture 6 }
+
+captureSFPTemperatureEntry OBJECT-TYPE
+    SYNTAX        CaptureSFPTemperatureEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+            A row in the captureSFPTemperatures table.
+        "
+    INDEX        {captureSFPIndex}
+    ::= { captureSFPTemperatures 1 }
+
+CaptureSFPTemperatureEntry ::= SEQUENCE {
+    captureSFPIndex           Integer32,
+    captureSFPTemperature     Integer32
+}
+
+captureSFPIndex OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The sfp that the temperature is for.
+        "
+    ::= { captureSFPTemperatureEntry 1 }
+
+captureSFPTemperature OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The temperature of the Napatech SFP.
+        "
+    ::= { captureSFPTemperatureEntry 2 }
+ 
+ppsLinkStatus OBJECT-TYPE
+    SYNTAX        INTEGER { linkNotPresent(0), linkPresent(1) , disable(2)}
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Whether pps link is detected
+        "
+    ::= { pps 1 } 
+
+ppsSkew OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            PPS Skew
+        " 
+    ::= { pps 2 }
+    
+systemTemperature OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Current system temperature
+        " 
+    ::= { sensors 1 }
+
+systemPower OBJECT-TYPE
+    SYNTAX        INTEGER { powerFault(0), powerOk(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            Current power supply status, 1 if everything is normal or zero if there is a problem
+        "
+    ::= { sensors 2 }  
+
+fanTable OBJECT-TYPE
+    SYNTAX        SEQUENCE OF FanTableEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+        Table to hold information about system fans
+        "
+    ::= { sensors 3 }
+
+fanTableEntry OBJECT-TYPE
+    SYNTAX        FanTableEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+        Entry in the fanTable
+        "
+    INDEX         {fanNumber}
+    ::= { fanTable 1 }
+
+FanTableEntry ::= SEQUENCE {
+    fanNumber    Integer32,
+    fanRpms         Integer32,
+    fanStatus       INTEGER
+}
+
+fanNumber OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        The numerical identifier of the fan
+        "
+    ::= { fanTableEntry 1 }
+    
+fanRpms OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        The speed the fan is currently running at (in revolutions per minute)
+        "
+    ::= { fanTableEntry 2 }
+    
+fanStatus OBJECT-TYPE
+    SYNTAX        INTEGER { error(-1), unknown(0), ok(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        The status of the fan -1 if there is a definite error, 0 if it is unknown and 1 for known good
+        "
+    ::= { fanTableEntry 3 }
+    
+systemDisks OBJECT-TYPE
+    SYNTAX        SEQUENCE OF SystemDiskEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            Table containing S.M.A.R.T status of all system disks as well as serial numbers.
+        "
+    ::= { disks 1 }
+
+systemDiskEntry OBJECT-TYPE
+    SYNTAX        SystemDiskEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            A row of the systemDisks table
+        "
+    INDEX         {systemDiskName}
+    ::= { systemDisks 1 }
+    
+SystemDiskEntry ::= SEQUENCE {
+    systemDiskName    OCTET STRING,
+    systemDiskHealth  INTEGER,
+    systemDiskSerial  OCTET STRING
+}
+
+systemDiskName OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The device name of the disk
+        "
+    ::= { systemDiskEntry 1 }
+    
+systemDiskHealth OBJECT-TYPE
+    SYNTAX        INTEGER { unhealthy(0), healthy(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            S.M.A.R.T status of the system disk
+        "
+    ::= { systemDiskEntry 2 }
+
+systemDiskSerial OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            Serial number of the disk
+        "
+    ::= { systemDiskEntry 3 }
+
+
+raidControllers OBJECT-TYPE
+    SYNTAX        SEQUENCE OF RaidControllerEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            Table of RAID controller information.
+        "
+    ::= { disks 2 }
+
+raidControllerEntry OBJECT-TYPE
+    SYNTAX        RaidControllerEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            Row of the raidControllers table.
+        "
+    INDEX         {raidControllerIndex}
+    ::= { raidControllers 1 }
+    
+RaidControllerEntry ::= SEQUENCE {
+    raidControllerIndex           Integer32,
+    raidControllerTemperature     Integer32,
+    raidControllerStatus          INTEGER,
+    raidControllerBIOS            OCTET STRING,
+    raidControllerFirmware        OCTET STRING,
+    raidControllerDriver          OCTET STRING,
+    raidControllerSerial          OCTET STRING
+}
+
+raidControllerIndex OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The index of the RAID controller.
+        "
+    ::= { raidControllerEntry 1 }
+    
+raidControllerTemperature OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            RAID Controller Temperature.
+        "
+    ::= { raidControllerEntry 2 }
+    
+raidControllerStatus OBJECT-TYPE
+    SYNTAX        INTEGER { non-optimal(0), optimal(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            Status of the RAID controller
+        "
+    ::= { raidControllerEntry 3 }
+    
+raidControllerBIOS OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The BIOS version of the RAID controller.
+        "
+    ::= { raidControllerEntry 4 }
+    
+raidControllerFirmware OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The Firmware version of the RAID controller.
+        "
+    ::= { raidControllerEntry 5 }
+    
+raidControllerDriver OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The driver version for the RAID controller.
+        "
+    ::= { raidControllerEntry 6 }
+    
+raidControllerSerial OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The RAID controller's serial number.
+        "
+    ::= { raidControllerEntry 7 }
+    
+raidVolumes OBJECT-TYPE
+    SYNTAX        SEQUENCE OF RaidVolumeEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            Table of RAID Volume Information
+        "
+    ::= { disks 3 }
+    
+raidVolumeEntry OBJECT-TYPE
+    SYNTAX        RaidVolumeEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION   
+        "
+            Row in the raidVolumes table.
+        "
+    INDEX         {raidVolumeController, raidVolumeName}
+    ::= { raidVolumes 1 }
+
+RaidVolumeEntry ::= SEQUENCE {
+    raidVolumeController      Integer32,
+    raidVolumeName            OCTET STRING,
+    raidVolumeStatus          OCTET STRING,
+    raidVolumeLevel           OCTET STRING,
+    raidVolumeStripeErrors    INTEGER,
+    raidVolumeSize            OCTET STRING
+}
+
+raidVolumeController OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The controller index this volume belongs to.
+        "
+    ::= { raidVolumeEntry 1 }
+
+raidVolumeName OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The logical volume name.
+        "
+    ::= { raidVolumeEntry 2 }
+
+raidVolumeStatus OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        RAID Logical Volume Status
+        "
+    ::= { raidVolumeEntry 3 }
+
+raidVolumeLevel OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        RAIDE Level of the logical volume
+        "
+    ::= { raidVolumeEntry 4 }
+    
+raidVolumeStripeErrors OBJECT-TYPE
+    SYNTAX        INTEGER { no(0), yes(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Failed Stripes of the raid volume
+        "
+    ::= { raidVolumeEntry 5 }
+    
+raidVolumeSize OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The size of the RAID volume
+        "
+    ::= { raidVolumeEntry 6 }
+    
+raidHealth OBJECT-TYPE
+    SYNTAX        SEQUENCE OF RaidHealthEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+        Table of SMART status for disks in the raid array
+        "
+    ::= { disks 4 }
+    
+raidHealthEntry OBJECT-TYPE
+    SYNTAX        RaidHealthEntry
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "
+        Entry in the raidHealthTable
+        "
+    INDEX         {raidDiskController, raidDiskVolume, raidDiskSerialNumber}
+    ::= { raidHealth 1 }
+    
+RaidHealthEntry ::= SEQUENCE {
+    raidDiskController      Integer32,
+    raidDiskVolume          Integer32,
+    raidDiskState           OCTET STRING,
+    raidDiskSmartStatus     INTEGER,
+    raidDiskSmartWarnings   Integer32,
+    raidDiskSerialNumber    OCTET STRING
+}
+
+raidDiskController OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The controller that this disk belongs to.
+        "
+    ::= { raidHealthEntry 1 }
+
+raidDiskVolume OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            The logical volume this disk belongs to.
+        "
+    ::= { raidHealthEntry 2 }
+    
+raidDiskState OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+            State of the raid disk (online for example)
+        "
+    ::= { raidHealthEntry 3 }
+
+raidDiskSmartStatus OBJECT-TYPE
+    SYNTAX        INTEGER { unhealthy(0), healthy(1) }
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        SMART Health Status of the disk
+        "
+    ::= { raidHealthEntry 4 }
+
+raidDiskSmartWarnings OBJECT-TYPE
+    SYNTAX        Integer32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        Number of SMART warnings reported by the raid controller for the disk
+        "
+    ::= { raidHealthEntry 5 }
+    
+raidDiskSerialNumber OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   
+        "
+            The serial number of the disk
+        "
+    ::= { raidHealthEntry 6 }
+
+systemLoadAvg1 OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        System load average for the past 1 minute.
+        "
+    ::= { load 1 } 
+
+systemLoadAvg5 OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        System load average for the past 5 minute.
+        "
+    ::= { load 2 }
+
+systemLoadAvg15 OBJECT-TYPE
+    SYNTAX        Float
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "
+        System load average for the past 15 minute.
+        "
+    ::= { load 3 }
+--
+-- --
+-- -- -- Notifications
+-- --
+--
+
+hhCaptureDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead capture daemon is dead."
+     ::= { errors 1 }
+
+hhRetrieveDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead retrieve daemon is dead."
+     ::= { errors 2 }
+
+hhChannelDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead channel daemon is dead."
+     ::= { errors 3 }
+
+hhRedisDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead redis daemon is dead."
+     ::= { errors 4 }
+
+hhMomDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead monitor daemon is dead."
+     ::= { errors 5 }
+
+hhStatsDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  Hammerhead stats daemon is dead."
+     ::= { errors 6 }
+
+captureDropsHigh NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead capture packet drops is excessively high."
+     ::= { errors 7 }
+
+
+captureErrorsHigh NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead capture packet errors is excessively high."
+     ::= { errors 8 }
+
+captureAdapterTemperatureHigh NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead capture adapter temperature is excessively high."
+     ::= { errors 9 }
+
+ppsLinkDown NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  PPS error." 
+     ::= { errors 10 }
+
+systemLoadHigh1 NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION
+                 "Severity: Alert
+                  System Load is High."
+    ::= { errors 11 }
+
+systemLoadHigh5 NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION
+                 "Severity: Alert
+                  System Load is High."
+    ::= { errors 12 }
+
+systemLoadHigh15 NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION
+                 "Severity: Alert
+                  System Load is High."
+    ::= { errors 13 }
+
+raidStorageFailure NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead controller/storage failure."
+     ::= { errors 14 }
+
+systemDiskFailure NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead system disk failure."
+     ::= { errors 15 }
+
+systemTemperatureHigh NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert 
+                  HammerHead system temperature is excessively high."
+     ::= { errors 16 }
+     
+systemTemperatureLow NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION
+                 "Severity: Alert
+                 HammerHead system temperature is excessively low."
+    ::= { errors 17 }
+     
+fanFault NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead system cooling/fan fault"
+     ::= { errors 18 }
+     
+systemPowerFault NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Alert
+                  HammerHead system power fault"
+     ::= { errors 19 }
+     
+captureAdapterTemperatureLow NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  Hammerhead capture adapter temperature is too low."
+    ::= { errors 20 }
+    
+captureSFPTemperatureHigh NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  SFP0 temperature is too high."
+    ::= { errors 21 }
+    
+captureSFPTemperatureLow NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  SFP0 temperature is too low."
+    ::= { errors 22 }    
+    
+raidControllerNonOptimal NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  The Raid Controller is reporting non-optimal status"
+    ::= { errors 29 }
+    
+captureLinkDown NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  Hammhead capture adapter channel link has gone down."
+    ::= { errors 30 }
+    
+hhWatchdogDown NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Alert
+                  The hhwatchdog process is not currently running."
+    ::= { errors 42 }
+-- -- -- --
+
+hhCaptureUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead capture daemon is alive."
+     ::= { notices 1 }
+
+hhRetrieveUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead retrieve daemon is alive."
+     ::= { notices 2 }
+
+hhChannelUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead channel daemon is alive."
+     ::= { notices 3 }
+
+hhRedisUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead redis daemon is alive."
+     ::= { notices 4 }
+
+hhMomUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead monitor daemon is alive."
+     ::= { notices 5 }
+
+systemLoadOk1 NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead system load is alive."
+     ::= { notices 6 }
+
+systemLoadOk5 NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead system load is alive."
+    ::= { notices 7 }
+
+systemLoadOk15 NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead system load is alive."
+    ::= { notices 8 }
+
+captureDropsOk NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead capture packet drops is ok."
+     ::= { notices 9 }
+
+captureErrorsOk NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead capture packet errors is ok."
+     ::= { notices 10 }
+
+captureAdapterTemperatureOk NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  HammerHead capture adapter temperature is ok."
+     ::= { notices 11 }
+
+ppsLinkUp NOTIFICATION-TYPE
+     STATUS      current
+     DESCRIPTION
+                 "Severity: Notice
+                  PPS ok." 
+    ::= { notices 12 }
+     
+systemLoadOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 System Load Ok." 
+    ::= { notices 13 }
+
+raidStorageOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead controller/storage ok."
+    ::= { notices 14 }
+
+systemDiskOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead system disk ok."
+    ::= { notices 15 }
+
+systemTemperatureOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice 
+                 HammerHead system temperature is ok."
+    ::= { notices 16 }
+     
+fanOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead system cooling/fan ok."
+    ::= { notices 17 }
+    
+systemPowerOk NOTIFICATION-TYPE
+    STATUS      current
+    DESCRIPTION
+                "Severity: Notice
+                 HammerHead system power ok."
+    ::= { notices 18 }
+
+captureSFPTemperatureOk NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION 
+                 "Severity: Notice
+                 SFP0 temperature is back to normal"
+    ::= { notices 19 }
+
+raidControllerOptimal NOTIFICATION-TYPE
+    STATUS       current
+    DESCRIPTION
+                 "Severity: Notice
+                 Raid Controller has returned to optimal status"
+    ::= { notices 23 } 
+    
+captureLinkUp NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Notice
+                  Hammhead capture adapter channel link is back up."
+    ::= { notices 24 }
+    
+hhStatsUp NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Notice
+                  The hhstats process is currently running."
+    ::= { notices 25 }
+
+hhWatchdogUp NOTIFICATION-TYPE
+    STATUS        current
+    DESCRIPTION
+                  "Severity: Notice
+                  The hhwatchdog process is currently running."
+    ::= { notices 36 }
+
+END
+

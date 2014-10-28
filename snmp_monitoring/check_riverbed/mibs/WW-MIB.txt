@@ -1,0 +1,865 @@
+WW-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    OBJECT-TYPE, MODULE-IDENTITY, NOTIFICATION-TYPE, Unsigned32
+                 FROM SNMPv2-SMI
+    OBJECT-GROUP, NOTIFICATION-GROUP, MODULE-COMPLIANCE
+                 FROM SNMPv2-CONF
+    DateAndTime FROM SNMPv2-TC
+    products FROM RBT-MIB;
+
+ww MODULE-IDENTITY
+        LAST-UPDATED        "201304260000Z"
+        ORGANIZATION        "Riverbed Technology, Inc."
+        CONTACT-INFO
+           "   Riverbed Technical Support
+               support@riverbed.com"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB"
+        REVISION            "201304260000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v3.0 Changes"
+        REVISION            "201301160000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v2.1 Changes"
+        REVISION            "201208130000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v2.0 Changes"
+        REVISION            "201202030000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v1.3.1 Changes"
+        REVISION            "201111040000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v1.3 Changes"
+        REVISION            "201105240000Z"
+        DESCRIPTION         "Riverbed Technology Whitewater MIB v1.2 Changes"
+        ::= { products 102 }
+
+wwSystem OBJECT IDENTIFIER
+    ::= { ww 1 }
+
+wwStatus OBJECT IDENTIFIER
+    ::= { ww 2 }
+
+wwConfig OBJECT IDENTIFIER
+    ::= { ww 3 }
+
+wwAlarms OBJECT IDENTIFIER
+    ::= { ww 4 }
+
+wwStatistics OBJECT IDENTIFIER
+    ::= { ww 5 }
+
+wwConformances OBJECT IDENTIFIER
+    ::= { ww 6 }
+
+wwCompliances OBJECT IDENTIFIER
+    ::= { ww 7 }
+
+--
+--
+-- SYSTEM
+--
+--
+
+model OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Appliance model"
+    ::= { wwSystem 1 }
+
+serialNumber OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Appliance serial number"
+    ::= { wwSystem 2 }
+
+systemVersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "System software version string"
+    ::= { wwSystem 3 }
+
+--
+--
+-- STATUS
+--
+--
+
+systemClock OBJECT-TYPE
+    SYNTAX      DateAndTime
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "System clock time"
+    ::= { wwStatus 1 }
+
+health OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Current health"
+    ::= { wwStatus 2 }
+
+systemHealth OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    healthy (10000),
+                    degraded (30000),
+                    critical (50000)
+                }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Current health of the system. This variable is identical to
+             health except that it is of integer datatype"
+    ::= { wwStatus 3 }
+
+systemTemperature OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION 
+            "The temperature of the system (C)"
+    ::= { wwStatus 4 }
+
+wwProcTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF WWProcEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "List of managed processes"
+    ::= { wwStatus 11 }
+
+wwProcEntry OBJECT-TYPE
+    SYNTAX      WWProcEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "Entry for one process"
+    INDEX   { procIndex }
+    ::= { wwProcTable 1 }
+
+WWProcEntry ::=
+    SEQUENCE {
+        procIndex             Unsigned32,
+        procName              OCTET STRING,
+        procStatus            OCTET STRING,
+        procNumFailures       Unsigned32
+    }
+
+procIndex OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "Synthetic numeric unique ID of process"
+    ::= { wwProcEntry 1 }
+
+procName OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Unique name of process"
+    ::= { wwProcEntry 2 }
+
+procStatus OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Current state of process"
+    ::= { wwProcEntry 3 }
+
+procNumFailures OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Number of times process has crashed or exited unexpectedly"
+    ::= { wwProcEntry 4 }
+
+--
+--
+-- CONFIG
+--
+--
+
+activeConfig OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Current active configuration"
+    ::= { wwConfig 1 }
+
+--
+--
+-- ALARMS
+--
+--
+
+alarmsPrefix OBJECT IDENTIFIER
+    ::= { wwAlarms 0 }
+
+procCrash NOTIFICATION-TYPE
+    OBJECTS { procName }
+    STATUS  current
+    DESCRIPTION
+            "A procCrash trap signifies that a process managed by PM
+            has crashed and left a core file.  The variable sent with
+            the notification indicates which process crashed."
+    ::= { alarmsPrefix 1 }
+
+procExit NOTIFICATION-TYPE
+    OBJECTS { procName }
+    STATUS  current
+    DESCRIPTION
+            "A procExit trap signifies that a process managed by PM
+            has exited unexpectedly, but not left a core file.
+            The variable sent with the notification indicates
+            which process exited."
+    ::= { alarmsPrefix 2 }
+
+configChange NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "A change has been made to the system's configuration"
+    ::= { alarmsPrefix 3 }
+
+cpuUtil NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The average CPU utilization in the past minute has gone
+            above the acceptable threshold"
+    ::= { alarmsPrefix 4 }
+
+pagingActivity NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The system has been paging excessively (thrashing)"
+    ::= { alarmsPrefix 5 }
+
+linkError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "An interface on the appliance has lost its link"
+    ::= { alarmsPrefix 6 }
+
+powerSupplyError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "A power supply on the appliance has failed" 
+    ::= { alarmsPrefix 7 }
+
+fanError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "A fan has failed on this appliance"
+    ::= { alarmsPrefix 8 }
+
+memoryError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "A memory error has been detected on the appliance" 
+    ::= { alarmsPrefix 9 }
+
+ipmi NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "An IPMI event has been detected on the appliance. Please check
+             the details in the alarm report on the web UI"  
+    ::= { alarmsPrefix 10 }
+
+localFSFull NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance local filesystem is full."
+    ::= { alarmsPrefix 11 }
+
+temperatureCritical NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system temperature has reached a critical stage"
+    ::= { alarmsPrefix 12 }
+
+temperatureWarning NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system temperature has exceeded the threshold"
+    ::= { alarmsPrefix 13 }
+
+scheduledJobError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "A scheduled job has failed during execution"
+    ::= { alarmsPrefix 14 }
+
+confModeEnter NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "A user has entered configuration mode"
+    ::= { alarmsPrefix 15 }
+
+confModeExit NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "A user has exited configuration mode"
+    ::= { alarmsPrefix 16 }
+
+secureVaultLocked NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Secure vault is locked. The secure datastore cannot be used."
+    ::= { alarmsPrefix 17 }
+
+dirtyCloud NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The cloud bucket is not empty even though the local datastore is"
+    ::= { alarmsPrefix 19 }
+
+license NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The WWBASE license is missing, expired, or invalid"
+    ::= { alarmsPrefix 21 }
+
+lowSpace NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The storage optimization service is running out of space"
+    ::= { alarmsPrefix 22 }
+
+overCapacity NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The cloud bucket has reached its licensed capacity"
+    ::= { alarmsPrefix 24 }
+
+replicationError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Replication encountered a non-fatal error"
+    ::= { alarmsPrefix 25 }
+
+replicationPause NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Replication was paused"
+    ::= { alarmsPrefix 26 }
+
+serviceError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The storage optimization service could not initialize properly"
+    ::= { alarmsPrefix 27 }
+
+portalUnreachable NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The Riverbed Cloud Portal is unreachable"
+    ::= { alarmsPrefix 28 }
+
+rplctdBytesPending NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Too many bytes pending to be replicated"
+    ::= { alarmsPrefix 29 }
+
+cloudDispError NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance might be connecting to another appliance's cloud
+            bucket"
+    ::= { alarmsPrefix 30 }
+
+dataEviction NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance had to evict recent data to prevent running out of
+            space in the datastore."
+    ::= { alarmsPrefix 31 }
+
+approachingCapacity NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The cloud bucket is approaching its licensed capacity"
+    ::= { alarmsPrefix 32 }
+
+blockstoreFull NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The System reserved space is full."
+    ::= { alarmsPrefix 34 }
+
+shelfError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "One or more added shelves have errors."
+    ::= { alarmsPrefix 35 }
+
+lowMemory NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system doesn't have enough memory to start service"
+    ::= { alarmsPrefix 36 }
+
+restoresNotThrottled NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The appliance has either exceeded its free restore limit or 
+            restore throttling has been disabled."
+    ::= { alarmsPrefix 37 }
+
+hwraidDiskIndivError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "An error has been detected with one or more disks."
+    ::= { alarmsPrefix 38 }
+
+shelfPowerSupply NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "One or more shelves have power supply errors."
+    ::= { alarmsPrefix 39 }
+
+hwraidBbuError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The Storage Optimization Service is disabled because the RAID is
+            degraded and the battery backup unit is not sufficiently charged."
+    ::= { alarmsPrefix 40 }
+
+bbuIndivError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "One or more Battery Backup Units have errors."
+    ::= { alarmsPrefix 41 }
+
+hwraidIntegrityCheckError NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "RAID integrity check alarm triggered due to unclean shutdown."
+    ::= { alarmsPrefix 42 }
+
+cpuUtilClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The average CPU utilization has fallen back
+             within the acceptable threshold"
+    ::= { alarmsPrefix 10004 }
+
+pagingActivityClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The system has stopped paging excessively (thrashing)"
+    ::= { alarmsPrefix 10005 }
+
+linkErrorClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "An interface on the appliance has regained its link"
+    ::= { alarmsPrefix 10006 }
+
+powerSupplyErrorClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "All power supplies are now functioning normally" 
+    ::= { alarmsPrefix 10007 }
+
+fanErrorClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "All system fans are now functioning normally" 
+    ::= { alarmsPrefix 10008 }
+
+memoryErrorClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "A memory error has been rectified on the appliance" 
+    ::= { alarmsPrefix 10009 }
+
+ipmiClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "An IPMI event has been rectified on the appliance"
+    ::= { alarmsPrefix 10010 }
+
+localFSFullClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance local filesystem usage is below threshold."
+    ::= { alarmsPrefix 10011 }
+
+temperatureNonCritical NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system temperature is no longer in a critical stage"
+    ::= { alarmsPrefix 10012 }
+
+temperatureNormal NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system temperature is back within the threshold"
+    ::= { alarmsPrefix 10013 }
+
+secureVaultUnlocked NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Secure vault is unlocked. The secure data store can be used now."
+    ::= { alarmsPrefix 10017 }
+
+dirtyCloudClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The cloud consistency issue has been resolved"
+    ::= { alarmsPrefix 10019 }
+
+licenseClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance is now properly licensed"
+    ::= { alarmsPrefix 10021 }
+
+lowSpaceClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance now has enough space for datastore"
+    ::= { alarmsPrefix 10022 }
+
+overCapacityClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The cloud bucket is no longer over its licensed capacity"
+    ::= { alarmsPrefix 10024 }
+
+replicationErrorClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Replication error has been cleared"
+    ::= { alarmsPrefix 10025 }
+
+replicationPauseClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Replication was resumed"
+    ::= { alarmsPrefix 10026 }
+
+serviceErrorClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The storage optimization service initialized properly"
+    ::= { alarmsPrefix 10027 }
+
+portalUnreachableClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The Riverbed Cloud Portal is now reachable"
+    ::= { alarmsPrefix 10028 }
+
+rplctdBytesPendingClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "Number of bytes pending replication is within normal range now"
+    ::= { alarmsPrefix 10029 }
+
+cloudDispErrorClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance is now connecting to its own cloud bucket"
+    ::= { alarmsPrefix 10030 }
+
+dataEvictionClear NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION
+            "The appliance is no longer evicting data"
+    ::= { alarmsPrefix 10031 }
+
+blockstoreFullClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The System reserved space is now enough."
+    ::= { alarmsPrefix 10033 }
+
+shelfErrorClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "All shelves are working properly."
+    ::= { alarmsPrefix 10034 }
+
+lowMemoryClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The system has enough memory."
+    ::= { alarmsPrefix 10035 }
+
+restoresNotThrottledClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "Restore throttling is now in effect."
+    ::= { alarmsPrefix 10036 }
+
+hwraidDiskIndivClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "All disks are functioning properly."
+    ::= { alarmsPrefix 10037 }
+
+shelfPowerSupplyClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "All shelves have proper power supply"
+    ::= { alarmsPrefix 10038 }
+
+hwraidBbuErrorClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "The Storage Optimization service is no longer disabled."
+    ::= { alarmsPrefix 10039 }
+
+bbuIndivClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "All Battery Backup Units are functioning properly."
+    ::= { alarmsPrefix 10040 }
+
+hwraidIntegrityCheckClear NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION
+            "RAID integrity check alarm cleared."
+    ::= { alarmsPrefix 10041 }
+
+--
+-- 
+-- STATISTICS
+--
+--
+
+wwCpuLoad OBJECT IDENTIFIER
+    ::= { wwStatistics 1 }
+
+cpuLoad1 OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "One-minute CPU load in hundredths"
+    ::= { wwCpuLoad 1 }
+
+cpuLoad5 OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Five-minute CPU load in hundredths"
+    ::= { wwCpuLoad 2 }
+
+cpuLoad15 OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Fifteen-minute CPU load in hundredths"
+    ::= { wwCpuLoad 3 }
+
+cpuUtil1 OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Percentage CPU utilization, aggregated across all CPUs, rolling
+	average over the past minute"
+    ::= { wwCpuLoad 4 }
+
+wwCpuIndivUtilTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF WWCPUIndivUtilEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "Details about the individual CPU utilization"
+    ::= { wwCpuLoad 5 }
+
+wwCpuIndivUtilEntry OBJECT-TYPE
+    SYNTAX      WWCPUIndivUtilEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "Entry for one cpu"
+    INDEX   { cpuIndivIndex }
+    ::= { wwCpuIndivUtilTable 1 }
+
+WWCPUIndivUtilEntry ::=
+    SEQUENCE {
+        cpuIndivIndex       Unsigned32,
+        cpuIndivId          Unsigned32,
+        cpuIndivIdleTime    Unsigned32,
+        cpuIndivSystemTime  Unsigned32,
+        cpuIndivUserTime    Unsigned32
+}
+
+cpuIndivIndex OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "A synthetic number numbering the cpus"
+    ::= { wwCpuIndivUtilEntry 1 }
+
+cpuIndivId OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Name of the cpu, also serves as the Index for the table"
+    ::= { wwCpuIndivUtilEntry 2 }
+
+cpuIndivIdleTime OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Idle time for this CPU"
+    ::= { wwCpuIndivUtilEntry 3 }
+
+cpuIndivSystemTime OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "System time for this CPU"
+    ::= { wwCpuIndivUtilEntry 4 }
+
+cpuIndivUserTime OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "User time for this CPU"
+    ::= { wwCpuIndivUtilEntry 5 }
+
+--
+-- 
+-- CONFORMANCES
+--
+--
+
+wwObjectsGroup OBJECT-GROUP
+    OBJECTS     { model,
+                  serialNumber,
+                  systemVersion,
+                  systemClock,
+                  health,
+                  systemHealth,
+                  systemTemperature,
+                  procName,
+                  procStatus,
+                  procNumFailures,
+                  activeConfig,
+                  cpuLoad1,
+                  cpuLoad5,
+                  cpuLoad15,
+                  cpuUtil1,
+                  cpuIndivId,
+                  cpuIndivIdleTime,
+                  cpuIndivSystemTime,
+                  cpuIndivUserTime }
+    STATUS      current
+    DESCRIPTION
+            "The WW group defines objects which are
+             implemented by all Whitewater appliances."
+    ::= { wwConformances 1 }
+
+wwNotificationsGroup NOTIFICATION-GROUP
+    NOTIFICATIONS { procCrash,
+                    procExit,
+                    configChange,
+                    cpuUtil,
+                    pagingActivity,
+                    linkError,
+                    powerSupplyError,
+                    fanError,
+                    memoryError,
+                    ipmi,
+                    localFSFull,
+                    temperatureCritical,
+                    temperatureWarning,
+                    scheduledJobError,
+                    confModeEnter,
+                    confModeExit,
+                    secureVaultLocked,
+                    dirtyCloud,
+                    license,
+                    lowSpace,
+                    overCapacity,
+                    replicationError,
+                    replicationPause,
+                    serviceError,
+                    portalUnreachable,
+                    rplctdBytesPending,
+                    cloudDispError,
+                    dataEviction,
+                    blockstoreFull,
+                    shelfError,
+                    lowMemory,
+                    restoresNotThrottled,
+                    hwraidDiskIndivError,
+                    shelfPowerSupply,
+                    hwraidBbuError,
+                    bbuIndivError,
+                    hwraidIntegrityCheckError,
+                    cpuUtilClear,
+                    pagingActivityClear,
+                    linkErrorClear,
+                    powerSupplyErrorClear,
+                    fanErrorClear,
+                    memoryErrorClear,
+                    ipmiClear,
+                    localFSFullClear,
+                    temperatureNonCritical,
+                    temperatureNormal,
+                    secureVaultUnlocked,
+                    dirtyCloudClear,
+                    licenseClear,
+                    lowSpaceClear,
+                    overCapacityClear,
+                    replicationErrorClear,
+                    replicationPauseClear,
+                    serviceErrorClear,
+                    portalUnreachableClear,
+                    rplctdBytesPendingClear,
+                    cloudDispErrorClear,
+                    dataEvictionClear,
+                    blockstoreFullClear,
+                    shelfErrorClear,
+                    lowMemoryClear,
+                    restoresNotThrottledClear,
+                    hwraidDiskIndivClear,
+                    shelfPowerSupplyClear,
+                    hwraidBbuErrorClear,
+                    bbuIndivClear,
+                    hwraidIntegrityCheckClear }
+    STATUS        current
+    DESCRIPTION
+            "The notifications that are implemented by the Whitewater appliance agent"
+    ::= { wwConformances 2 }
+
+--
+-- 
+-- COMPLIANCES
+--
+--
+
+wwMIBCompliance MODULE-COMPLIANCE
+    STATUS      current
+    DESCRIPTION
+            "The compliance statement for the Riverbed Whitewater MIB."
+    MODULE -- compliance to the containing MIB module
+    MANDATORY-GROUPS { wwObjectsGroup,
+                       wwNotificationsGroup }
+
+    ::= { wwCompliances 1 }
+
+END
+

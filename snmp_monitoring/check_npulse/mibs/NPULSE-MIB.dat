@@ -1,0 +1,62 @@
+NPULSE-MIB DEFINITIONS ::= BEGIN
+ 
+    IMPORTS
+        MODULE-IDENTITY, enterprises, Counter64
+            FROM SNMPv2-SMI
+            
+        Opaque FROM SNMPv2-SMI
+            
+        TEXTUAL-CONVENTION
+            FROM SNMPv2-TC;
+           
+    npulse MODULE-IDENTITY
+        LAST-UPDATED "201210100000Z"  -- October 10, 2012
+        ORGANIZATION "nPulse Technologies, Inc."
+        CONTACT-INFO
+            "
+            nPulse Technologies, Inc.
+            374 Four Leaf Lane, Suite 204
+            Charlottesville, VA 22903
+            "
+        DESCRIPTION
+            "
+            Main nPulse MIB
+            "
+        REVISION "201210100000Z"
+        DESCRIPTION
+            "
+            Initial Revision
+            "
+        ::= { enterprises 38885 } -- assigned by IANA
+
+Integer64 ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT  "d"
+    STATUS        current
+    DESCRIPTION
+        "
+        64 Bit Signed Integer
+        "
+    SYNTAX        Counter64
+
+Unsigned64 ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT  "d"
+    STATUS        current
+    DESCRIPTION
+        "
+        64 Bit Unsigned Integer
+        "
+    SYNTAX        Counter64
+
+Double ::= TEXTUAL-CONVENTION
+    STATUS        current
+    DESCRIPTION
+        "
+        Double Precision Floating Point
+        "
+    SYNTAX        Opaque (SIZE(11))
+ 
+
+npulseProducts    OBJECT IDENTIFIER ::= { npulse 1 }
+
+END
+
